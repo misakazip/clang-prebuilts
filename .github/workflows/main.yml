@@ -1,6 +1,11 @@
 name: Build LLVM Components in Parallel
 
 on:
+  push:
+    branches:
+      - 18
+    paths:
+      - '.github/workflows/**.yml'
   schedule:
   - cron: 0 0 1 * *
   workflow_dispatch:
