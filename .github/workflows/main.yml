@@ -136,9 +136,13 @@ jobs:
           cp -r upload/bin ./
           cp -r upload/lib ./
           cp -r upload/share ./
-          rm -rr upload/
+          rm -rm upload/
           git config --local user.name "github-actions"
           git config --local user.email "github-actions@github.com"
-          git add bin lib share
-          git commit -m "Upload Clang and LLD binaries and dependencies"
-          git push
+          git add .
+          if ! git diff --cached --quiet; then
+            git commit -m "Upload Clang and LLD binaries and dependencies"
+            git push
+          else
+          echo "No changes to commit."
+          fi
