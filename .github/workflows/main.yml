@@ -1,0 +1,128 @@
+name: Build LLVM Components in Parallel
+
+on:
+  push:
+    branches:
+      - main
+  workflow_run:
+
+jobs:
+  # Clangのビルドジョブ
+  build-clang:
+    runs-on: ubuntu-latest
+    outputs:
+      clang_path: ${{ steps.upload.outputs.path }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            python3 \
+            zlib1g-dev \
+            libncurses5-dev \
+            libssl-dev \
+            libffi-dev
+
+      - name: Clone LLVM repository
+        run: git clone --depth 1 -b release/18.x https://github.com/llvm/llvm-project.git
+
+      - name: Build Clang
+        run: |
+          mkdir -p llvm-project/build-clang
+          cd llvm-project/build-clang
+          cmake -G "Ninja" \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DLLVM_ENABLE_PROJECTS="clang" \
+                -DCMAKE_INSTALL_PREFIX=install \
+                ../llvm
+          ninja
+          ninja install
+
+      - name: Compress Clang files
+        run: |
+          cd llvm-project/build-clang/install
+          tar -czvf clang-binaries.tar.gz bin/ lib/ share/
+          echo "${PWD}/clang-binaries.tar.gz" > clang_path.txt
+        id: upload
+
+  # LLDのビルドジョブ
+  build-lld:
+    runs-on: ubuntu-latest
+    outputs:
+      lld_path: ${{ steps.upload.outputs.path }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            python3 \
+            zlib1g-dev \
+            libncurses5-dev \
+            libssl-dev \
+            libffi-dev
+
+      - name: Clone LLVM repository
+        run: git clone --depth 1 -b release/18.x https://github.com/llvm/llvm-project.git
+
+      - name: Build LLD
+        run: |
+          mkdir -p llvm-project/build-lld
+          cd llvm-project/build-lld
+          cmake -G "Ninja" \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DLLVM_ENABLE_PROJECTS="lld" \
+                -DCMAKE_INSTALL_PREFIX=install \
+                ../llvm
+          ninja
+          ninja install
+
+      - name: Compress LLD files
+        run: |
+          cd llvm-project/build-lld/install
+          tar -czvf lld-binaries.tar.gz bin/ lib/ share/
+          echo "${PWD}/lld-binaries.tar.gz" > lld_path.txt
+        id: upload
+
+  # 成果物をリポジトリにアップロードするジョブ
+  upload-artifacts:
+    runs-on: ubuntu-latest
+    needs: [build-clang, build-lld]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Download Clang artifacts
+        run: |
+          curl -L -o clang-binaries.tar.gz $(cat ${{ needs.build-clang.outputs.clang_path }})
+
+      - name: Download LLD artifacts
+        run: |
+          curl -L -o lld-binaries.tar.gz $(cat ${{ needs.build-lld.outputs.lld_path }})
+
+      - name: Extract and Upload Binaries to Repository
+        run: |
+          mkdir -p upload/bin upload/lib upload/share
+          tar -xzvf clang-binaries.tar.gz -C upload
+          tar -xzvf lld-binaries.tar.gz -C upload
+          
+          # リポジトリにファイルをコピーしてコミット
+          cp -r upload/bin ./
+          cp -r upload/lib ./
+          cp -r upload/share ./
+          git config --local user.name "github-actions"
+          git config --local user.email "github-actions@github.com"
+          git add bin lib share
+          git commit -m "Add Clang and LLD binaries and dependencies"
+          git push
