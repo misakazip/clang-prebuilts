@@ -108,7 +108,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lld-binaries.tar.gz
-          path: llvm-project/build-clang/install/lld-binaries.tar.gz
+          path: llvm-project/build-lld/install/lld-binaries.tar.gz
           compression-level: 0
           if-no-files-found: error
 
