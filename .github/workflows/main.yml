@@ -47,8 +47,12 @@ jobs:
         run: |
           cd llvm-project/build-clang/install
           tar -czvf clang-binaries.tar.gz bin/ lib/ share/
-          echo "${PWD}/clang-binaries.tar.gz" > clang_path.txt
-        id: upload
+
+      - name: Upload tar.gz file
+        uses: actions/upload-artifact@v3
+        with:
+          name: clang-binaries.tar.gz
+          path: clang-binaries.tar.gz
 
   # LLDのビルドジョブ
   build-lld:
@@ -91,8 +95,13 @@ jobs:
         run: |
           cd llvm-project/build-lld/install
           tar -czvf lld-binaries.tar.gz bin/ lib/ share/
-          echo "${PWD}/lld-binaries.tar.gz" > lld_path.txt
-        id: upload
+      
+      - name: Upload tar.gz file
+        uses: actions/upload-artifact@v3
+        with:
+          name: lld-binaries.tar.gz
+          path: lld-binaries.tar.gz
+
 
   # 成果物をリポジトリにアップロードするジョブ
   upload-artifacts:
@@ -103,12 +112,14 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Download Clang artifacts
-        run: |
-          curl -L -o clang-binaries.tar.gz $(cat ${{ needs.build-clang.outputs.clang_path }})
+        uses: actions/download-artifact@v3
+        with:
+          name: clang-binaries.tar.gz
 
       - name: Download LLD artifacts
-        run: |
-          curl -L -o lld-binaries.tar.gz $(cat ${{ needs.build-lld.outputs.lld_path }})
+        uses: actions/download-artifact@v3
+        with:
+          name: lld-binaries.tar.gz
 
       - name: Extract and Upload Binaries to Repository
         run: |
@@ -120,8 +131,9 @@ jobs:
           cp -r upload/bin ./
           cp -r upload/lib ./
           cp -r upload/share ./
+          rm -rr upload/
           git config --local user.name "github-actions"
           git config --local user.email "github-actions@github.com"
           git add bin lib share
-          git commit -m "Add Clang and LLD binaries and dependencies"
+          git commit -m "Upload Clang and LLD binaries and dependencies"
           git push
