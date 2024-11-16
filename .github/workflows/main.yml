@@ -142,7 +142,7 @@ jobs:
           cp -r upload/bin ./
           cp -r upload/lib ./
           cp -r upload/share ./
-          rm -rm upload/
+          rm -rf upload/
           git config --local user.name "github-actions"
           git config --local user.email "github-actions@github.com"
           git add .
